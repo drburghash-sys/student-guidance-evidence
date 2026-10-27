@@ -6,11 +6,11 @@
 <title>شواهد برامج التوجيه الطلابي</title>
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
 <link rel="manifest" href="./manifest.webmanifest">
-<link rel="stylesheet" href="./style.css?v=20261027-iosvideo2">
+<link rel="stylesheet" href="./style.css?v=20261027-iosvideo3">
 <script defer src="https://accounts.google.com/gsi/client"></script>
 <script defer src="https://unpkg.com/qr-code-styling@1.8.4/lib/qr-code-styling.js"></script>
 <script defer src="./site-config.js"></script>
-<script defer src="./app.js?v=20261027-iosvideo2"></script>
+<script defer src="./app.js?v=20261027-iosvideo3"></script>
 </head>
 <body>
 <div class="shell">
@@ -43,18 +43,18 @@
  <div class="upload-actions">
   <button id="cameraButton" class="upload-tile" type="button"><span>◎</span><b>تصوير صورة</b><small>فتح الكاميرا</small></button>
   <button id="videoButton" class="upload-tile" type="button"><span>◉</span><b>تصوير فيديو</b><small>تسجيل فيديو جديد</small></button>
-  <button id="videoLibraryButton" class="upload-tile" type="button"><span>▸</span><b>فيديو من الألبوم</b><small>اختيار فيديو محفوظ بالصور</small></button>
+  <label class="upload-tile upload-tile-native"><span>▸</span><b>فيديو من الألبوم</b><small>اختيار مباشر من مكتبة الصور</small><input id="videoLibraryInput" type="file" accept="video/*,video/quicktime,video/mp4,.mov,.mp4,.m4v"></label>
   <button id="mediaButton" class="upload-tile" type="button"><span>▧</span><b>الصور والفيديوهات</b><small>اختيار من مكتبة الصور</small></button>
   <button id="filesButton" class="upload-tile" type="button"><span>▤</span><b>استعراض كل الملفات</b><small>بدون فلترة الأنواع — للآيفون أيضًا</small></button>
  </div>
  <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
  <input id="videoInput" type="file" accept="video/*" capture="environment" hidden>
- <input id="videoLibraryInput" type="file" accept="video/*" hidden>
+ 
  <input id="mediaInput" type="file" multiple accept="image/*,video/*" hidden>
  <input id="filesInput" type="file" multiple hidden>
  <div class="picker-help">
   <b>إذا ظهرت «لا توجد صور أو فيديوهات» في الآيفون:</b>
-  <p>افتحي تطبيق «الصور» وتأكدي أن الفيديو موجود في ألبوم «الفيديوهات». ويمكنك فتح الفيديو ثم «مشاركة» ← «حفظ في الملفات»، والعودة هنا إلى «استعراض كل الملفات» لاختيار الفيديو دون فلترة.</p>
+  <p>إذا كانت الفيديوهات موجودة في «الصور» لكنها لا تظهر في منتقي Safari، افتحي الفيديو من تطبيق «الصور» ثم «مشاركة» ← «حفظ في الملفات»، وبعدها اضغطي «استعراض كل الملفات» لاختياره. لا حاجة لنقل الفيديو إلى درايف يدويًا.</p>
   <button id="openSelectedDriveFolder" class="outline sm" type="button">فتح مجلد البرنامج في Google Drive للرفع المباشر</button>
  </div>
  <div id="chosenFiles" class="chosen" hidden></div>
