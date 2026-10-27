@@ -5,6 +5,40 @@
   const SCOPE = "https://www.googleapis.com/auth/drive.file";
   const API = "https://www.googleapis.com/drive/v3";
   const UPLOAD = "https://www.googleapis.com/upload/drive/v3";
+  // Short-lived access tokens remain in sessionStorage only, never localStorage.
+  const SESSION_KEY = "student_guidance_oauth_session_v2";
+  const ACCOUNT_KEY = "student_guidance_account_hint_v2";
+  function rememberedAccount(){try{return localStorage.getItem(ACCOUNT_KEY)||"";}catch(_){return "";}}
+  function clearSession(clearAccount=false){
+    try{sessionStorage.removeItem(SESSION_KEY);}catch(_){}
+    if(clearAccount){try{localStorage.removeItem(ACCOUNT_KEY);}catch(_){}}
+  }
+  function saveSession(expiresInSeconds){
+    const seconds=Number(expiresInSeconds);
+    if(!store.token||!Number.isFinite(seconds)||seconds<=90)return;
+    // Expire proactively to avoid sending nearly-expired credentials to Google.
+    const info={token:store.token,clientId:clientId(),expiresAt:Date.now()+(seconds-60)*1000,account:store.account||""};
+    try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(info));}catch(_){}
+  }
+  async function restoreSession(){
+    let cached=null;
+    try{cached=JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null");}catch(_){}
+    if(!cached||typeof cached.token!=="string"||cached.clientId!==clientId()||!Number.isFinite(cached.expiresAt)||cached.expiresAt<=Date.now()+30000){clearSession();return;}
+    store.token=cached.token;
+    store.account=cached.account||rememberedAccount();
+    updateState();
+    try{
+      await loadAccount();
+      if(!store.token)return;
+      await bootstrap();
+    }catch(err){
+      if(!store.token){clearSession();updateState();return;}
+      // Keep a non-expired grant if a temporary network error occurs.
+      console.warn("Google session verification failed:",err);
+      msg("تعذر تحديث البرامج. تحققي من الإنترنت ثم أعيدي فتح الصفحة.");
+      updateState();
+    }
+  }
   const PALETTE = ["#225C78","#794A87","#A86627","#287354","#AF4057","#3E5B9A","#7C5830","#3B767F","#75549F","#9C4E37","#396B45","#315F94","#865160","#526A35","#8C4A65","#326F73"];
   const store = {token:"", root:"", programs:[], files:[], chosen:[], config:{colors:{},logo:""}, configId:"", qrLarge:null, selectedCode:null, pendingEdit:null, saving:false, rootPublic:false, account:""};
   const $ = id => document.getElementById(id);
@@ -41,14 +75,14 @@
   on("iosCopyLink","click",copySiteToSafari);
   function updateState(){
     $("iosLoginHelp").hidden=!!store.token || !/iPad|iPhone|iPod/i.test(navigator.userAgent);
-    $("accountButton").textContent=store.token?"Google متصل":"ربط Google";
+    $("accountButton").textContent=store.token?"Google متصل":(rememberedAccount()?"متابعة Google":"ربط Google");
     $("connectedAs").textContent=store.token?"تم الربط بالحساب: "+(store.account||"Google"):"غير متصل";
     $("rootState").textContent=store.root?(store.rootPublic?"متاح للعرض":"تحققي من المشاركة"):"غير منشأ";
     $("rootInfo").textContent=store.root?"معرّف المجلد: "+store.root+(store.rootPublic?" — المشاركة العامة مفعلة":" — المشاركة العامة غير مؤكدة"):"يُنشأ في حساب Google الذي سجلتِ الدخول به، وليس في حساب مالك مستودع GitHub.";
     $("countPrograms").textContent=arabic(store.programs.length);
     $("statusBanner").style.display=store.token && store.root && store.rootPublic?"none":"flex";
     const status=$("statusBanner");
-    if(!store.token){status.querySelector("b").textContent="الخطوة الأولى: تسجيل الدخول بحساب الموجهة";status.querySelector("p").textContent="اضغطي بدء الربط واختاري حساب Google الصحيح."; $("startButton").textContent="ربط Google";}
+    if(!store.token){status.querySelector("b").textContent=rememberedAccount()?"انتهت جلسة Google أو تحتاج إلى تجديد":"الخطوة الأولى: تسجيل الدخول بحساب الموجهة";status.querySelector("p").textContent=rememberedAccount()?"اضغطي متابعة؛ سيتذكر الموقع حسابك وقد تطلب Google موافقة جديدة عند انتهاء التصريح.":"اضغطي بدء الربط واختاري حساب Google الصحيح."; $("startButton").textContent=rememberedAccount()?"متابعة Google":"ربط Google";}
     else if(!store.root){status.querySelector("b").textContent="الخطوة الثانية: إنشاء مجلد الشواهد";status.querySelector("p").textContent="سيُنشأ مجلد جديد في حسابك ويُشارك للعرض فقط."; $("startButton").textContent="إنشاء المجلد";}
     else {status.querySelector("b").textContent="تحتاج صلاحية المشاهدة العامة إلى التحقق";status.querySelector("p").textContent="يمكن إصلاح المشاركة من الإعدادات، وفق سياسات حساب Google."; $("startButton").textContent="إصلاح المشاركة";}
     $("uploadButton").disabled=!store.token||!store.root||!store.rootPublic||!$("programSelect").value||!store.chosen.length||store.saving;
@@ -60,20 +94,33 @@
     if(!/^[0-9]+-[\w-]+\.apps\.googleusercontent\.com$/.test(id)){page("settings");msg("أدخلي Google OAuth Client ID صالحًا أولًا من إعدادات Google Cloud");return;}
     if(!window.google||!google.accounts||!google.accounts.oauth2){msg("خدمة Google لم تكتمل. افتحي الموقع في Chrome وتحققي من الإنترنت.");return;}
     try{
+      const hint=rememberedAccount();
       const client=google.accounts.oauth2.initTokenClient({
-        client_id:id, scope:SCOPE,
+        client_id:id, scope:SCOPE, ...(hint?{login_hint:hint}:{}),
+        error_callback:()=>msg("لم يكتمل تسجيل Google. افتحي الموقع من Safari أو Chrome مباشرة."),
         callback:async result=>{
           if(result.error){showError("تعذر تفويض Google: "+result.error);return;}
+          if(!result.access_token){showError("لم تقدم Google رمز دخول صالحًا");return;}
           store.token=result.access_token;
-          try{await loadAccount();await bootstrap();msg("تم الاتصال بحساب Google");}
+          // Save the short-lived grant only for this browser tab/session.
+          saveSession(result.expires_in);
+          try{await loadAccount();saveSession(result.expires_in);await bootstrap();msg("تم الاتصال بحساب Google");}
           catch(e){showError(e);}updateState();
         }
       });
-      client.requestAccessToken({prompt:"select_account"});
+      // A previous consent should not force account selection on every visit.
+      // A user gesture is still required when Google issues a fresh token.
+      client.requestAccessToken({prompt:hint?"":"select_account",...(hint?{login_hint:hint}:{})});
     }catch(e){showError(e);}
   }
   async function loadAccount(){
-    try{const r=await drive("/about?fields=user(displayName,emailAddress)");store.account=r.user&& (r.user.emailAddress||r.user.displayName) ||"Google";}catch(e){store.account="Google";}
+    try{
+      const r=await drive("/about?fields=user(displayName,emailAddress)");
+      store.account=r.user&& (r.user.emailAddress||r.user.displayName) ||"Google";
+      if(r.user&&r.user.emailAddress){
+        try{localStorage.setItem(ACCOUNT_KEY,r.user.emailAddress);}catch(_){}
+      }
+    }catch(e){if(!store.account)store.account=rememberedAccount()||"Google";}
   }
   async function drive(path,opts){
     if(!store.token)throw Error("يلزم تسجيل الدخول إلى حساب Google");
@@ -82,7 +129,7 @@
     if(!res.ok){
       let reason="HTTP "+res.status;
       try{const data=await res.json();reason=data.error&&data.error.message||reason;}catch(_){}
-      if(res.status===401){store.token="";updateState();reason="انتهت صلاحية تسجيل الدخول. أعيدي ربط Google ثم المحاولة. "+reason;}
+      if(res.status===401){store.token="";clearSession();updateState();reason="انتهت صلاحية Google. اضغطي متابعة Google لتجديد الاتصال. "+reason;}
       if(res.status===403)reason="رفض Google العملية. تحققي من الصلاحيات وسياسات الحساب: "+reason;
       throw Error(reason);
     }
@@ -465,7 +512,8 @@
   });
   on("connectBtn","click",login);
   on("disconnectBtn","click",()=>{
-    if(store.token && window.google && google.accounts && google.accounts.oauth2)google.accounts.oauth2.revoke(store.token,()=>{});
+    // Sign out locally without revoking Drive access on the spouse's other devices.
+    clearSession(true);
     store.token="";store.root="";store.programs=[];store.rootPublic=false;store.configId="";store.config={colors:{},logo:""};store.account="";
     $("logoPreview").src=customIcon();renderPrograms();renderCodes();updateState();msg("تم فصل الحساب على هذا الجهاز");
   });
@@ -491,4 +539,6 @@
   on("logoFileInput","change",async e=>{try{await processLogo(e.target.files[0]);}catch(err){showError(err);}e.target.value="";});
   on("resetLogoBtn","click",async()=>{if(!store.root){msg("أعدي المجلد أولًا");return;}try{store.config.logo="";await saveConfig();$("logoPreview").src=customIcon();renderCodes();msg("تمت استعادة الشعار الافتراضي");}catch(e){showError(e);}});
   updateState();
+  // Existing session is restored after reload; no unsolicited Google popups.
+  restoreSession();
 })();
