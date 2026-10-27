@@ -214,6 +214,94 @@
     if(progressCb)progressCb();
     return drive(UPLOAD+"/files?uploadType=multipart&fields=id,name,webViewLink",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+boundary},body});
   }
+  function detectMime(file){
+    if(file.type && file.type!=="application/octet-stream")return file.type;
+    const ext=(file.name.split(".").pop()||"").toLowerCase();
+    const mimeMap={mov:"video/quicktime",mp4:"video/mp4",m4v:"video/x-m4v",avi:"video/x-msvideo",mkv:"video/x-matroska",webm:"video/webm",heic:"image/heic",heif:"image/heif",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",pdf:"application/pdf"};
+    return mimeMap[ext]||"application/octet-stream";
+  }
+  async function uploadEvidence(metadata,file,onProgress){
+    const mime=detectMime(file);
+    if(file.size<=5*1024*1024){
+      const result=await multipartCreate(metadata,file);
+      if(onProgress)onProgress(file.size,file.size);
+      return result;
+    }
+    // Google recommends resumable uploads for large files and mobile connections.
+    // Nothing is copied to GitHub; content travels to Google Drive directly.
+    const init=await fetch(UPLOAD+"/files?uploadType=resumable&fields=id,name,webViewLink",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+store.token,
+        "Content-Type":"application/json; charset=UTF-8",
+        "X-Upload-Content-Type":mime,
+        "X-Upload-Content-Length":String(file.size)
+      },
+      body:JSON.stringify({...metadata,mimeType:mime})
+    });
+    if(!init.ok){
+      let reason=init.status+" "+init.statusText;
+      try{const e=await init.json();reason=e.error?.message||reason;}catch(_){}
+      throw Error("تعذر بدء رفع الفيديو إلى Drive: "+reason);
+    }
+    const uploadUrl=init.headers.get("Location");
+    if(!uploadUrl)throw Error("لم يُرجع Google رابط جلسة رفع الفيديو. جرّبي رفعه من تطبيق Google Drive مباشرة.");
+    const parsed=new URL(uploadUrl);
+    if(parsed.protocol!=="https:"||!(parsed.hostname==="www.googleapis.com"||parsed.hostname==="content.googleapis.com"))throw Error("استجابة رفع غير متوقعة من Google");
+    const chunkSize=8*1024*1024;
+    let start=0, recoveries=0;
+    const readRange=(response,alternative)=>{
+      const range=response.headers.get("Range");
+      const found=range&&range.match(/(?:bytes=)?\d+-(\d+)/i);
+      return found?Number(found[1])+1:alternative;
+    };
+    while(start<file.size){
+      const end=Math.min(start+chunkSize,file.size);
+      let result;
+      try{
+        result=await fetch(uploadUrl,{
+          method:"PUT",
+          headers:{"Content-Type":mime,"Content-Range":"bytes "+start+"-"+(end-1)+"/"+file.size},
+          body:file.slice(start,end)
+        });
+      }catch(err){
+        result=null;
+      }
+      if(result&&(result.status===200||result.status===201)){
+        const saved=await result.json();
+        if(onProgress)onProgress(file.size,file.size);
+        return saved;
+      }
+      if(result&&result.status===308){
+        start=readRange(result,end);
+        recoveries=0;
+        if(onProgress)onProgress(start,file.size);
+        continue;
+      }
+      if(result && ![408,429,500,502,503,504].includes(result.status)){
+        throw Error("رفض Drive استكمال الرفع (HTTP "+result.status+"). جرّبي مرة أخرى.");
+      }
+      if(++recoveries>3)throw Error("تعذر إكمال رفع الفيديو بسبب اتصال الشبكة. تأكدي من الواي فاي وأعيدي المحاولة.");
+      // Query Google's resumable-session status instead of restarting uploaded bytes.
+      try{
+        const check=await fetch(uploadUrl,{method:"PUT",headers:{"Content-Range":"bytes */"+file.size}});
+        if(check.status===200||check.status===201){
+          const saved=await check.json();
+          if(onProgress)onProgress(file.size,file.size);
+          return saved;
+        }
+        if(check.status===308){
+          start=readRange(check,0);
+          if(onProgress)onProgress(start,file.size);
+        }else if(check.status===404){
+          throw Error("انتهت جلسة رفع الفيديو. أعيدي اختيار الملف ثم الرفع.");
+        }
+      }catch(e){
+        if(e&&e.message&&e.message.startsWith("انتهت جلسة"))throw e;
+      }
+    }
+    throw Error("رفع الفيديو لم يُؤكَّد مكتملًا من Google Drive. تحققي من المجلد قبل إعادة المحاولة.");
+  }
   async function saveConfig(){
     if(!store.root)return;
     const text=JSON.stringify({colors:store.config.colors,logo:store.config.logo});
@@ -294,8 +382,9 @@
     const parent=$("programSelect").value;
     if(!parent||!store.programs.some(p=>p.id===parent)){msg("اختاري برنامجًا صحيحًا");return;}
     if(!store.chosen.length){msg("اختاري الملفات");return;}
-    const tooBig=store.chosen.find(f=>f.size>35*1024*1024);
-    if(tooBig){msg("الملف "+tooBig.name+" أكبر من 35MB. ارفعيه إلى المجلد مباشرة من Google Drive.");return;}
+    const maxBrowserUpload=1024*1024*1024;
+    const tooBig=store.chosen.find(f=>f.size>maxBrowserUpload);
+    if(tooBig){msg("الملف "+tooBig.name+" أكبر من 1GB. افتحي مجلد البرنامج في Google Drive لرفعه مباشرة.");return;}
     const accepted=confirm("ستُنشر "+arabic(store.chosen.length)+" ملفات في مجلد متاح لمن يملك الرابط.\nتأكدي من عدم احتواء الملفات على بيانات سرية للطالبات.\nهل تريدين الرفع؟");
     if(!accepted)return;
     store.saving=true;updateState();$("uploadProgress").hidden=false;
@@ -308,13 +397,20 @@
         try{
           const safeNote=note.replace(/[\/\\:*?"<>|]/g,"-").slice(0,80);
           const name=safeNote?safeNote+" - "+f.name:f.name;
-          await multipartCreate({name,parents:[parent],mimeType:f.type||"application/octet-stream"},f);
+          const mime=detectMime(f);
+          const onProgress=(uploaded,total)=>{
+            const fraction=(i+Math.min(1,uploaded/Math.max(1,total)))/files.length;
+            $("uploadProgressBar").style.width=Math.round(fraction*100)+"%";
+            $("uploadMessage").textContent="رفع "+f.name+" : "+Math.round(uploaded/Math.max(1,total)*100)+"٪";
+          };
+          const uploaded=await uploadEvidence({name,parents:[parent],mimeType:mime},f,onProgress);
+          if(!uploaded||!uploaded.id)throw Error("تعذر تأكيد الملف في Google Drive");
           successes++;
         }catch(e){errors.push(f.name+": "+e.message);}
         $("uploadProgressBar").style.width=Math.round((i+1)/files.length*100)+"%";
       }
       if(successes){msg("تم حفظ "+arabic(successes)+" ملفات في Google Drive");
-        chooseFiles([]);$("cameraInput").value="";$("filesInput").value="";$("evidenceNote").value="";await loadFiles();}
+        chooseFiles([]);["cameraInput","videoInput","mediaInput","filesInput"].forEach(id=>$(id).value="");$("evidenceNote").value="";await loadFiles();}
       if(errors.length){$("uploadMessage").textContent="نجح "+successes+"، وفشل "+errors.length+": "+errors.join(" | ");showError("فشل رفع بعض الملفات، راجعي التفاصيل");}
       else $("uploadMessage").textContent="اكتمل حفظ "+arabic(successes)+" ملفات وتأكدنا من استجابة Google Drive.";
     }catch(e){showError(e);}
@@ -522,10 +618,10 @@
   on("newProgramBtn","click",()=>openProgramDialog());
   on("saveProgramBtn","click",saveProgram);
   on("programName","keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveProgram();}});
-  on("cameraButton","click",()=>{if(!$("programSelect").value){msg("اختاري البرنامج أولًا");return;}$("cameraInput").click();});
-  on("filesButton","click",()=>{if(!$("programSelect").value){msg("اختاري البرنامج أولًا");return;}$("filesInput").click();});
-  on("cameraInput","change",e=>chooseFiles(e.target.files));
-  on("filesInput","change",e=>chooseFiles(e.target.files));
+  for(const [buttonId,inputId] of [["cameraButton","cameraInput"],["videoButton","videoInput"],["mediaButton","mediaInput"],["filesButton","filesInput"]]){
+    on(buttonId,"click",()=>{if(!$("programSelect").value){msg("اختاري البرنامج أولًا");return;}$(inputId).click();});
+    on(inputId,"change",e=>chooseFiles(e.target.files));
+  }
   on("programSelect","change",()=>{updateState();loadFiles();});
   on("uploadButton","click",uploadChosen);
   on("reloadFilesBtn","click",loadFiles);
