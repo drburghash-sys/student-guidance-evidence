@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10243c"><meta name="description" content="نظام إدارة شواهد برامج التوجيه الطلابي ومشاركة أكواد QR">
+<title>شواهد برامج التوجيه الطلابي</title>
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="./style.css">
+<script defer src="https://accounts.google.com/gsi/client"></script>
+<script defer src="https://unpkg.com/qr-code-styling@1.8.4/lib/qr-code-styling.js"></script>
+<script defer src="./app.js"></script>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+ <div class="identity"><img class="brand-icon" src="./icon.svg" alt=""><div><b>شواهد برامج التوجيه الطلابي</b><small>الموجهة الطلابية · فايزة النصيري</small></div></div>
+ <button id="accountButton" class="outline sm" type="button">ربط Google</button>
+</header>
+<nav class="nav" aria-label="الأقسام">
+ <button class="nav-item active" data-page="home"><span>⌂</span>الرئيسية</button>
+ <button class="nav-item" data-page="upload"><span>▣</span>رفع الشواهد</button>
+ <button class="nav-item" data-page="codes"><span>▦</span>الأكواد</button>
+ <button class="nav-item" data-page="settings"><span>⚙</span>الإعدادات</button>
+</nav>
+<main>
+<div id="statusBanner" class="status-card"><div class="status-icon">◈</div><div><b>الملفات تحفظ في حساب Google الخاص بالموجهة</b><p>ابدئي بتسجيل الدخول بحسابك. لا تحفظ صور الشواهد على GitHub.</p></div><button id="startButton" class="gold">بدء الربط</button></div>
+<section id="home" class="page active">
+ <div class="hero"><span class="eyebrow">لوحة الشواهد الرقمية</span><h1>كل شواهد البرامج<br>في مكان واحد</h1><p>تصوير الشاهد، حفظه في Google Drive، ومشاركة رمز QR للعرض العام.</p><div class="hero-actions"><button class="gold" data-jump="upload">＋ رفع شاهد</button><button class="ghost-white" data-jump="codes">▦ عرض الأكواد</button></div></div>
+ <div class="metrics"><div class="metric"><span>البرامج</span><b id="countPrograms">٠</b></div><div class="metric"><span>الملف الرئيسي</span><b id="rootState">غير متصل</b></div><div class="metric"><span>المشاركة</span><b>مشاهد فقط</b></div></div>
+ <div class="section-title"><div><h2>برامج التوجيه الطلابي</h2><p>لكل برنامج مجلد مستقل في درايف</p></div><button class="gold sm" id="newProgramBtn">＋ برنامج</button></div>
+ <div id="programList" class="program-list"><div class="empty">اربطي حساب Google لعرض برامجك.</div></div>
+</section>
+<section id="upload" class="page">
+ <div class="section-title"><div><h2>رفع شاهد جديد</h2><p>تأكدي من اختيار البرنامج الصحيح قبل الرفع.</p></div></div>
+ <div class="panel">
+ <label for="programSelect">البرنامج المستهدف</label><select id="programSelect"><option value="">اختاري البرنامج...</option></select>
+ <div class="upload-actions"><button id="cameraButton" class="upload-tile" type="button"><span>◎</span><b>فتح الكاميرا</b><small>التقاط صورة مباشرة</small></button><button id="filesButton" class="upload-tile" type="button"><span>▤</span><b>ملفات الجهاز</b><small>صور وPDF ومستندات</small></button></div>
+ <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden><input id="filesInput" type="file" multiple accept="image/*,application/pdf,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" hidden>
+ <div id="chosenFiles" class="chosen" hidden></div>
+ <label for="evidenceNote">وصف الشاهد (اختياري)</label><input id="evidenceNote" placeholder="مثال: تنفيذ برنامج القيم — الأسبوع الأول" maxlength="110">
+ <p class="privacy-note">⚠ كل ما يُرفع داخل مجلد البرامج سيكون قابلًا للمشاهدة لأي شخص لديه رابط المجلد. احذفي أسماء الطالبات وبياناتهن الحساسة قبل الرفع.</p>
+ <button id="uploadButton" class="gold full" disabled>رفع الملفات إلى Google Drive</button>
+ <div id="uploadProgress" class="progress" hidden><div id="uploadProgressBar"></div></div><p id="uploadMessage" class="muted"></p>
+ </div>
+ <div class="section-title"><div><h2>ملفات البرنامج</h2><p>عرض آخر الملفات المحفوظة فعلًا في Google Drive</p></div><button id="reloadFilesBtn" class="outline sm">تحديث</button></div><div id="fileList" class="file-list"><div class="empty">اختاري برنامجًا لعرض ملفاته.</div></div>
+</section>
+<section id="codes" class="page">
+ <div class="section-title"><div><h2>رموز QR</h2><p>الرمز الرئيسي لجميع البرامج، ورمز مستقل لكل برنامج.</p></div></div>
+ <div class="qr-actions"><button id="printButton" class="gold">▤ طباعة A4 / PDF</button><button id="shareAllButton" class="outline">↗ مشاركة الرابط الرئيسي</button></div>
+ <div id="codesGrid" class="qr-grid"><div class="empty">ستظهر الرموز بعد ربط Google Drive وإنشاء المجلدات.</div></div>
+ <p class="muted small">تُنشأ أكواد QR الفعلية من رابط مجلد Drive. لمشاركة رمز فردي، اضغطي عليه لعرضه بالحجم الكبير.</p>
+</section>
+<section id="settings" class="page">
+ <div class="section-title"><div><h2>إعدادات الموجهة</h2><p>الربط يتم على هاتف الزوجة بحسابها هي.</p></div></div>
+ <div class="panel"><h3>اتصال Google</h3><label for="clientId">Google OAuth Client ID (عام وليس كلمة مرور)</label><input id="clientId" dir="ltr" type="text" placeholder="123456789-xxxx.apps.googleusercontent.com" autocomplete="off"><p class="muted small">يُستخدم معرّف عميل Google Cloud المسموح له بالعمل من عنوان الموقع هذا. حفظه على الهاتف لا يمنح أحدًا صلاحية الوصول إلى الملفات.</p><div class="inline-actions"><button id="saveClientId" class="gold">حفظ الإعداد</button><button id="connectBtn" class="outline">تسجيل الدخول بحساب Google</button><button id="disconnectBtn" class="outline">قطع الاتصال</button></div>
+ <div id="connectedAs" class="notice">غير متصل</div>
+ <h3>مجلد درايف الرئيسي</h3><p class="muted small">يتم إنشاؤه مرة واحدة باسم «شواهد برامج التوجيه الطلابي» في حساب الزوجة ويُضبط للمشاهدة العامة. المجلد القديم لا يُمس.</p><div class="inline-actions"><button id="setupRootBtn" class="gold">إنشاء / استعادة المجلد الرئيسي</button><button id="openRootBtn" class="outline">فتح في Drive</button></div><p id="rootInfo" class="muted small"></p></div>
+ <div class="panel"><h3>هوية أكواد QR</h3><div class="logo-settings"><img src="./icon.svg" alt="الشعار الحالي" id="logoPreview"><div><p class="muted small">الشعار الافتراضي كحلي وذهبي. يمكن رفع أيقونة مربعة خاصة، وسيظهر تغييرها في كل الأكواد الجديدة دون تغيير روابطها.</p><input id="logoFileInput" type="file" accept="image/*" hidden><div class="inline-actions"><button id="changeLogoBtn" class="outline">تغيير الشعار</button><button id="resetLogoBtn" class="outline">استعادة الافتراضي</button></div></div></div></div>
+ <div class="panel"><h3>إعداد Google Cloud مرة واحدة</h3><ol class="steps"><li>أنشئ مشروعًا في <a target="_blank" rel="noopener" href="https://console.cloud.google.com/">Google Cloud Console</a> وفعّل Google Drive API.</li><li>من Google Auth Platform اضبط شاشة الموافقة، وأنشئ OAuth Client ID بنوع <b>Web application</b>.</li><li>أضف نطاق JavaScript المصرّح به: <code>https://drburghash-sys.github.io</code>.</li><li>أضف بريد الزوجة ضمن Test users إذا كان التطبيق بحالة الاختبار، ثم انسخ Client ID أعلاه.</li><li>زوجتك تسجل بحسابها، ثم تضغط إنشاء / استعادة المجلد.</li></ol><p class="muted small">لا تضعي Client Secret أو مفتاح API خاصًا أو كلمة المرور في الموقع. إذا رفض حساب مدرسي المشاركة العامة فقد تكون سياسة المشرف تمنعها.</p></div>
+ <div class="panel"><h3>الأمان</h3><p class="privacy-note">الموقع عام، لكن عمليات التعديل تحتاج تصريح Google على حساب مالك الملفات. مشاركة QR تمنح «مشاهدة فقط». تأكدي من إخفاء البيانات الشخصية للطالبات في الشواهد العامة.</p></div>
+</section>
+</main>
+<footer>شواهد برامج التوجيه الطلابي · جميع البيانات في Google Drive</footer>
+</div>
+<dialog id="programDialog"><form method="dialog" class="modal"><h2 id="dialogTitle">إضافة برنامج</h2><label for="programName">اسم البرنامج</label><input id="programName" maxlength="120" placeholder="اسم البرنامج" required><div class="inline-actions"><button class="gold" id="saveProgramBtn" type="button">حفظ البرنامج</button><button class="outline" type="submit">إلغاء</button></div></form></dialog>
+<dialog id="qrDialog"><div class="modal center"><h2 id="qrModalTitle">رمز البرنامج</h2><div id="qrLarge"></div><div class="inline-actions centered"><button class="gold" id="shareQrImage">مشاركة الصورة</button><button class="outline" id="shareQrLink">مشاركة الرابط</button></div><button class="text-button" id="closeQrDialog">إغلاق</button></div></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="printArea" aria-hidden="true"></div>
+</body>
+</html>
