@@ -381,6 +381,72 @@
     store.config.logo=canvas.toDataURL("image/png");
     await saveConfig();$("logoPreview").src=customIcon();renderCodes();msg("تم تغيير الشعار ومزامنته في Google Drive");
   }
+  async function imageFromQr(c,size){
+    const qr=newQr(folderUrl(c.id),c.color,size);
+    const blob=await qr.getRawData("png");
+    if(!blob)throw Error("لم يكتمل إنشاء صورة الكود");
+    if(window.createImageBitmap)return createImageBitmap(blob);
+    const url=URL.createObjectURL(blob);
+    try{const image=new Image();image.src=url;await image.decode();return image;}
+    finally{URL.revokeObjectURL(url);}
+  }
+  function drawWords(ctx,value,centerX,firstY,maxWidth){
+    let line="",y=firstY;
+    for(const word of String(value).split(" ")){
+      const next=line?line+" "+word:word;
+      if(ctx.measureText(next).width>maxWidth && line){ctx.fillText(line,centerX,y);line=word;y+=32;}
+      else line=next;
+    }
+    if(line)ctx.fillText(line,centerX,y);
+  }
+  async function shareA4(){
+    if(!store.root||!store.rootPublic)return;
+    if(!qrAvailable())return;
+    busy($("shareA4Button"),true);
+    try{
+      const items=allCodes(),main=items.shift(),outputs=[];
+      let pageNumber=0;
+      do{
+        const c=document.createElement("canvas");c.width=1240;c.height=1754;
+        const ctx=c.getContext("2d");ctx.fillStyle="#ffffff";ctx.fillRect(0,0,c.width,c.height);
+        ctx.fillStyle="#10243c";ctx.textAlign="center";ctx.direction="rtl";
+        ctx.font="bold 46px Tajawal, Arial, sans-serif";ctx.fillText("شواهد برامج التوجيه الطلابي",620,78);
+        ctx.font="bold 26px Tajawal, Arial, sans-serif";ctx.fillStyle="#6b7280";ctx.fillText("الموجهة الطلابية — فايزة النصيري",620,122);
+        ctx.fillStyle="#d6b878";ctx.fillRect(120,146,1000,4);
+        let top=195, perPage=12;
+        if(pageNumber===0){
+          const img=await imageFromQr(main,260);ctx.drawImage(img,490,174,260,260);
+          if(img.close)img.close();
+          ctx.fillStyle="#10243c";ctx.font="bold 28px Tajawal, Arial, sans-serif";ctx.fillText("جميع برامج التوجيه الطلابي",620,465);
+          top=545;perPage=9;
+        }
+        const entries=items.splice(0,perPage);
+        const rowHeight=pageNumber===0?365:365;
+        for(let i=0;i<entries.length;i++){
+          const item=entries[i],column=i%3,row=Math.floor(i/3),cx=223+column*397,cy=top+row*rowHeight;
+          const img=await imageFromQr(item,235);
+          ctx.drawImage(img,cx-117,cy,235,235);if(img.close)img.close();
+          ctx.fillStyle="#10243c";ctx.font="bold 26px Tajawal, Arial, sans-serif";ctx.textAlign="center";
+          drawWords(ctx,item.name,cx,cy+280,350);
+        }
+        ctx.fillStyle="#8794a1";ctx.font="20px Tajawal, Arial, sans-serif";
+        ctx.fillText("امسح الرمز لفتح الشواهد في Google Drive — مشاهدة فقط",620,1715);
+        const blob=await new Promise(resolve=>c.toBlob(resolve,"image/png"));
+        if(!blob)throw Error("تعذر تجهيز ورقة A4");
+        outputs.push(new File([blob],"شواهد-التوجيه-صفحة-"+(pageNumber+1)+".png",{type:"image/png"}));
+        pageNumber++;
+      }while(items.length);
+      if(navigator.share && navigator.canShare && navigator.canShare({files:outputs})){
+        await navigator.share({files:outputs,title:"أكواد شواهد التوجيه الطلابي - A4"});
+      }else{
+        for(const file of outputs){
+          const url=URL.createObjectURL(file),a=document.createElement("a");a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+        }
+        msg("تم تحميل صور ورق A4. يمكنك مشاركتها من ملفات الهاتف.");
+      }
+    }catch(e){if(e.name!=="AbortError")showError(e);}
+    finally{busy($("shareA4Button"),false);}
+  }
   on("startButton","click",()=>{if(!store.token)login();else setupRoot();});
   on("accountButton","click",()=>store.token?page("settings"):login());
   on("saveClientId","click",()=>{
@@ -407,6 +473,7 @@
   on("uploadButton","click",uploadChosen);
   on("reloadFilesBtn","click",loadFiles);
   on("printButton","click",()=>{if(!store.rootPublic)return;if(!qrAvailable())return;buildPrintSheet();setTimeout(()=>window.print(),700);});
+  on("shareA4Button","click",shareA4);
   on("shareAllButton","click",()=>shareLink(folderUrl(store.root),"جميع شواهد برامج التوجيه الطلابي"));
   on("shareQrImage","click",shareQr);
   on("shareQrLink","click",()=>{if(store.selectedCode)shareLink(folderUrl(store.selectedCode.id),store.selectedCode.name);});
