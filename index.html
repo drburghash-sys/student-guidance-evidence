@@ -40,8 +40,17 @@
  <div class="section-title"><div><h2>رفع شاهد جديد</h2><p>تأكدي من اختيار البرنامج الصحيح قبل الرفع.</p></div></div>
  <div class="panel">
  <label for="programSelect">البرنامج المستهدف</label><select id="programSelect"><option value="">اختاري البرنامج...</option></select>
- <div class="upload-actions"><button id="cameraButton" class="upload-tile" type="button"><span>◎</span><b>فتح الكاميرا</b><small>التقاط صورة مباشرة</small></button><button id="filesButton" class="upload-tile" type="button"><span>▤</span><b>ملفات الجهاز</b><small>صور وPDF ومستندات</small></button></div>
- <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden><input id="filesInput" type="file" multiple accept="image/*,application/pdf,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" hidden>
+ <div class="upload-actions">
+  <button id="cameraButton" class="upload-tile" type="button"><span>◎</span><b>تصوير صورة</b><small>فتح الكاميرا</small></button>
+  <button id="videoButton" class="upload-tile" type="button"><span>◉</span><b>تصوير فيديو</b><small>تسجيل فيديو جديد</small></button>
+  <button id="mediaButton" class="upload-tile" type="button"><span>▧</span><b>الصور والفيديوهات</b><small>اختيار من ألبوم الجوال</small></button>
+  <button id="filesButton" class="upload-tile" type="button"><span>▤</span><b>ملفات الجهاز</b><small>فيديو، PDF، Word وغيرها</small></button>
+ </div>
+ <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+ <input id="videoInput" type="file" accept="video/*" capture="environment" hidden>
+ <input id="mediaInput" type="file" multiple accept="image/*,video/*,.heic,.heif,.mov,.mp4,.m4v" hidden>
+ <input id="filesInput" type="file" multiple accept="image/*,video/*,application/pdf,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.mov,.mp4,.m4v,.heic,.heif,.avi,.mkv" hidden>
+ <p class="muted small">على الآيفون: إذا لم يظهر الفيديو في ألبوم الصور، جرّبي «ملفات الجهاز» أو تأكدي من أن المتصفح يستطيع الوصول إلى الفيديوهات.</p>
  <div id="chosenFiles" class="chosen" hidden></div>
  <label for="evidenceNote">وصف الشاهد (اختياري)</label><input id="evidenceNote" placeholder="مثال: تنفيذ برنامج القيم — الأسبوع الأول" maxlength="110">
  <p class="privacy-note">⚠ كل ما يُرفع داخل مجلد البرامج سيكون قابلًا للمشاهدة لأي شخص لديه رابط المجلد. احذفي أسماء الطالبات وبياناتهن الحساسة قبل الرفع.</p>
