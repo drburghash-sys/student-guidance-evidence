@@ -33,7 +33,14 @@
       await navigator.clipboard.writeText(url);msg("تم نسخ الرابط");}
     catch(e){if(e.name!=="AbortError"){try{await navigator.clipboard.writeText(url);msg("تم نسخ الرابط");}catch(_){prompt("انسخي الرابط:",url);}}}
   }
+  async function copySiteToSafari(){
+    const url=location.origin+location.pathname;
+    try{await navigator.clipboard.writeText(url);msg("تم نسخ الرابط. افتحي Safari والصقي الرابط في شريط العنوان.");}
+    catch(e){prompt("انسخي هذا الرابط وافتحيه مباشرة في Safari:",url);}
+  }
+  on("iosCopyLink","click",copySiteToSafari);
   function updateState(){
+    $("iosLoginHelp").hidden=!!store.token || !/iPad|iPhone|iPod/i.test(navigator.userAgent);
     $("accountButton").textContent=store.token?"Google متصل":"ربط Google";
     $("connectedAs").textContent=store.token?"تم الربط بالحساب: "+(store.account||"Google"):"غير متصل";
     $("rootState").textContent=store.root?(store.rootPublic?"متاح للعرض":"تحققي من المشاركة"):"غير منشأ";
