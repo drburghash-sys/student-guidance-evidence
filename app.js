@@ -106,14 +106,16 @@
   async function setPublic(id){
     try{
       const r=await drive("/files/"+encodeURIComponent(id)+"/permissions?fields=permissions(id,type,role)");
-      if((r.permissions||[]).some(p=>p.type==="anyone" && (p.role==="reader"||p.role==="writer"))){store.rootPublic=true;return;}
+      const existing=(r.permissions||[]).find(p=>p.type==="anyone");
+      if(existing&&existing.role==="reader"){store.rootPublic=true;return;}
+      if(existing){await drive("/files/"+encodeURIComponent(id)+"/permissions/"+encodeURIComponent(existing.id)+"?fields=id,role",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:"reader"})});store.rootPublic=true;return;}
       await drive("/files/"+encodeURIComponent(id)+"/permissions?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"anyone",role:"reader",allowFileDiscovery:false})});
       store.rootPublic=true;
     }catch(e){store.rootPublic=false;throw e;}
   }
   async function verifyPublic(){
     try {const r=await drive("/files/"+encodeURIComponent(store.root)+"/permissions?fields=permissions(id,type,role)");
-      store.rootPublic=(r.permissions||[]).some(x=>x.type==="anyone" && ["reader","writer"].includes(x.role));
+      store.rootPublic=(r.permissions||[]).some(x=>x.type==="anyone" && x.role==="reader");
     }catch(e){store.rootPublic=false;}
   }
   async function bootstrap(){
