@@ -85,6 +85,7 @@
     if(!store.token){status.querySelector("b").textContent=rememberedAccount()?"انتهت جلسة Google أو تحتاج إلى تجديد":"الخطوة الأولى: تسجيل الدخول بحساب الموجهة";status.querySelector("p").textContent=rememberedAccount()?"اضغطي متابعة؛ سيتذكر الموقع حسابك وقد تطلب Google موافقة جديدة عند انتهاء التصريح.":"اضغطي بدء الربط واختاري حساب Google الصحيح."; $("startButton").textContent=rememberedAccount()?"متابعة Google":"ربط Google";}
     else if(!store.root){status.querySelector("b").textContent="الخطوة الثانية: إنشاء مجلد الشواهد";status.querySelector("p").textContent="سيُنشأ مجلد جديد في حسابك ويُشارك للعرض فقط."; $("startButton").textContent="إنشاء المجلد";}
     else {status.querySelector("b").textContent="تحتاج صلاحية المشاهدة العامة إلى التحقق";status.querySelector("p").textContent="يمكن إصلاح المشاركة من الإعدادات، وفق سياسات حساب Google."; $("startButton").textContent="إصلاح المشاركة";}
+    $("videoLibraryInput").disabled=!$("programSelect").value||store.saving;
     $("uploadButton").disabled=!store.token||!store.root||!store.rootPublic||!$("programSelect").value||!store.chosen.length||store.saving;
     $("printButton").disabled=!store.root||!store.rootPublic;
     $("shareAllButton").disabled=!store.root||!store.rootPublic;
@@ -618,10 +619,11 @@
   on("newProgramBtn","click",()=>openProgramDialog());
   on("saveProgramBtn","click",saveProgram);
   on("programName","keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveProgram();}});
-  for(const [buttonId,inputId] of [["cameraButton","cameraInput"],["videoButton","videoInput"],["videoLibraryButton","videoLibraryInput"],["mediaButton","mediaInput"],["filesButton","filesInput"]]){
+  for(const [buttonId,inputId] of [["cameraButton","cameraInput"],["videoButton","videoInput"],["mediaButton","mediaInput"],["filesButton","filesInput"]]){
     on(buttonId,"click",()=>{if(!$("programSelect").value){msg("اختاري البرنامج أولًا");return;}$(inputId).click();});
     on(inputId,"change",e=>chooseFiles(e.target.files));
   }
+  on("videoLibraryInput","change",e=>chooseFiles(e.target.files));
   on("openSelectedDriveFolder","click",()=>{
     const id=$("programSelect").value;
     if(!id||!store.programs.some(p=>p.id===id)){msg("اختاري البرنامج أولًا لفتح مجلده");return;}
