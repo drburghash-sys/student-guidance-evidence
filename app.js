@@ -410,7 +410,7 @@
         $("uploadProgressBar").style.width=Math.round((i+1)/files.length*100)+"%";
       }
       if(successes){msg("تم حفظ "+arabic(successes)+" ملفات في Google Drive");
-        chooseFiles([]);["cameraInput","videoInput","mediaInput","filesInput"].forEach(id=>$(id).value="");$("evidenceNote").value="";await loadFiles();}
+        chooseFiles([]);["cameraInput","videoInput","videoLibraryInput","mediaInput","filesInput"].forEach(id=>$(id).value="");$("evidenceNote").value="";await loadFiles();}
       if(errors.length){$("uploadMessage").textContent="نجح "+successes+"، وفشل "+errors.length+": "+errors.join(" | ");showError("فشل رفع بعض الملفات، راجعي التفاصيل");}
       else $("uploadMessage").textContent="اكتمل حفظ "+arabic(successes)+" ملفات وتأكدنا من استجابة Google Drive.";
     }catch(e){showError(e);}
@@ -618,10 +618,15 @@
   on("newProgramBtn","click",()=>openProgramDialog());
   on("saveProgramBtn","click",saveProgram);
   on("programName","keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveProgram();}});
-  for(const [buttonId,inputId] of [["cameraButton","cameraInput"],["videoButton","videoInput"],["mediaButton","mediaInput"],["filesButton","filesInput"]]){
+  for(const [buttonId,inputId] of [["cameraButton","cameraInput"],["videoButton","videoInput"],["videoLibraryButton","videoLibraryInput"],["mediaButton","mediaInput"],["filesButton","filesInput"]]){
     on(buttonId,"click",()=>{if(!$("programSelect").value){msg("اختاري البرنامج أولًا");return;}$(inputId).click();});
     on(inputId,"change",e=>chooseFiles(e.target.files));
   }
+  on("openSelectedDriveFolder","click",()=>{
+    const id=$("programSelect").value;
+    if(!id||!store.programs.some(p=>p.id===id)){msg("اختاري البرنامج أولًا لفتح مجلده");return;}
+    window.open(folderUrl(id),"_blank","noopener");
+  });
   on("programSelect","change",()=>{updateState();loadFiles();});
   on("uploadButton","click",uploadChosen);
   on("reloadFilesBtn","click",loadFiles);
