@@ -20,7 +20,7 @@
   document.querySelectorAll("[data-jump]").forEach(b=>b.addEventListener("click",()=>page(b.dataset.jump)));
   function busy(buttonEl,value){buttonEl.disabled=!!value;buttonEl.dataset.original=buttonEl.dataset.original||buttonEl.textContent;buttonEl.textContent=value?"جارٍ التنفيذ...":buttonEl.dataset.original;}
   function showError(err){const t=String(err && err.message || err ||"حدث خطأ غير معروف");msg(t);console.error(err);return t;}
-  function clientId(){return localStorage.getItem("sge_google_client_id") || "";}
+  function clientId(){return (window.GUIDANCE_APP_CONFIG&&window.GUIDANCE_APP_CONFIG.googleOAuthClientId)||localStorage.getItem("sge_google_client_id")||"";}
   const queryId = new URLSearchParams(location.search).get("client_id");
   if(queryId && /^[0-9]+-[a-zA-Z0-9_-]+\.apps\.googleusercontent\.com$/.test(queryId))localStorage.setItem("sge_google_client_id",queryId);
   $("clientId").value=clientId();
