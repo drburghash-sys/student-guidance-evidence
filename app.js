@@ -127,7 +127,7 @@
     busy($("setupRootBtn"),true);
     try{
       store.root=await searchRoot();
-      if(!store.root){const f=await createFolder(ROOT_NAME);store.root=f.id;}
+      if(!store.root){const agree=confirm("سيُنشأ مجلد الشواهد الجديد في حساب Google التالي:\n"+(store.account||"الحساب المتصل حاليًا")+"\n\nتأكدي أنه حساب الموجهة الطلابية فايزة النصيري، وليس حساب الزوج. هل تريدين المتابعة؟");if(!agree)return;const f=await createFolder(ROOT_NAME);store.root=f.id;}
       await setPublic(store.root);
       await loadConfig();await fetchPrograms();
       msg("المجلد جاهز للعرض العام. الملفات القديمة لم تُعدّل.");
@@ -169,7 +169,8 @@
       store.configId=created.id;
     }
   }
-  function pickColor(i){return PALETTE[i%PALETTE.length];}
+  function pickColor(i){if(i<PALETTE.length)return PALETTE[i];return "hsl("+Math.round(i*137.50776405%360)+" 53% 32%)";}
+  function nextColor(){const used=new Set(Object.values(store.config.colors));for(let i=0;i<1000;i++){const color=pickColor(i);if(!used.has(color))return color;}return "#245b71";}
   function programColor(p){return store.config.colors[p.id]||pickColor(store.programs.findIndex(x=>x.id===p.id));}
   function renderPrograms(){
     const root=$("programList");root.innerHTML="";
@@ -206,7 +207,7 @@
       }else{
         if(store.programs.some(p=>p.name===name)){msg("هذا البرنامج موجود بالفعل");return;}
         const f=await createFolder(name,store.root);
-        store.config.colors[f.id]=pickColor(store.programs.length);
+        store.config.colors[f.id]=nextColor();
         try{await saveConfig();}catch(e){showError("أُنشئ المجلد ولكن تعذر حفظ لونه: "+e.message);}
         msg("تم إنشاء البرنامج داخل Google Drive");
       }
